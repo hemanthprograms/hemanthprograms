@@ -1,0 +1,92 @@
+name: SnoreGuard iOS
+
+on:
+  push:
+    paths:
+      - "SnoreGuard/**"
+      - ".github/workflows/snoreguard-ios.yml"
+  pull_request:
+    paths:
+      - "SnoreGuard/**"
+      - ".github/workflows/snoreguard-ios.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: snoreguard-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build and test on an iPhone simulator
+    runs-on: macos-15
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: SnoreGuard
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          ls -d /Applications/Xcode*.app || true
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -n "$XCODE" ]; then sudo xcode-select -s "$XCODE/Contents/Developer"; fi
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Pick an iPhone simulator
+        id: simulator
+        run: |
+          xcodebuild -project SnoreGuard.xcodeproj -scheme SnoreGuard -showdestinations | tee destinations.txt
+          ID=$(grep "platform:iOS Simulator" destinations.txt | grep "name:iPhone" | grep -v "error" | tail -n 1 | sed -E 's/.*id:([^,]+),.*/\1/')
+          if [ -z "$ID" ]; then echo "::error::No iPhone simulator available"; exit 1; fi
+          echo "Using simulator $ID"
+          echo "id=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild -project SnoreGuard.xcodeproj -scheme SnoreGuard \
+            -destination "id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build 2>&1 | tee build.log
+
+      - name: Test
+        run: |
+          set -o pipefail
+          xcodebuild -project SnoreGuard.xcodeproj -scheme SnoreGuard \
+            -destination "id=${{ steps.simulator.outputs.id }}" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            test 2>&1 | tee test.log
+
+      - name: Check for warnings and errors
+        if: always()
+        run: |
+          cat build.log test.log 2>/dev/null | grep -E "(warning|error):" | sort -u > issues.txt || true
+          echo "All issues reported by xcodebuild:"
+          cat issues.txt
+          grep -E "$GITHUB_WORKSPACE/SnoreGuard/(SnoreGuard|SnoreGuardTests|Config)/" issues.txt > project-issues.txt || true
+          if [ -s project-issues.txt ]; then
+            echo "::error::Warnings or errors in project sources"
+            cat project-issues.txt
+            exit 1
+          fi
+          echo "No warnings or errors in project sources."
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-logs
+          path: |
+            SnoreGuard/build.log
+            SnoreGuard/test.log
+            SnoreGuard/issues.txt
+          if-no-files-found: ignore
