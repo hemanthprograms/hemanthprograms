@@ -178,28 +178,34 @@ struct RemedyAnalyzer {
                 label: .baseline
             )
         }
-        let remedies = samples
-            .filter { !$0.isBaseline && !$0.values.isEmpty }
-            .map { group in
-                let outcome = verdict(baseline: baselineValues, remedy: group.values)
-                return RemedyComparison(
-                    remedyID: group.remedyID,
-                    name: group.name,
-                    phrase: group.phrase,
-                    symbol: group.symbol,
-                    isBaseline: false,
-                    nights: group.values.count,
-                    mean: Statistics.mean(group.values),
-                    standardDeviation: Statistics.standardDeviation(group.values),
-                    percentChange: outcome.percentChange,
-                    pValue: outcome.pValue,
-                    label: outcome.label
-                )
-            }
-            .sorted { lhs, rhs in
-                lhs.label.rank != rhs.label.rank ? lhs.label.rank < rhs.label.rank : lhs.mean < rhs.mean
-            }
+        let candidates = samples.filter { !$0.isBaseline && !$0.values.isEmpty }
+        let comparisons: [RemedyComparison] = candidates.map { comparison(for: $0, baseline: baselineValues) }
+        let remedies = comparisons.sorted(by: Self.clearestFirst)
         return RemedyReport(baseline: baseline, remedies: remedies, summary: summary(baseline: baseline, remedies: remedies))
+    }
+
+    private func comparison(for group: RemedySamples, baseline: [Double]) -> RemedyComparison {
+        let outcome = verdict(baseline: baseline, remedy: group.values)
+        return RemedyComparison(
+            remedyID: group.remedyID,
+            name: group.name,
+            phrase: group.phrase,
+            symbol: group.symbol,
+            isBaseline: false,
+            nights: group.values.count,
+            mean: Statistics.mean(group.values),
+            standardDeviation: Statistics.standardDeviation(group.values),
+            percentChange: outcome.percentChange,
+            pValue: outcome.pValue,
+            label: outcome.label
+        )
+    }
+
+    private static func clearestFirst(_ lhs: RemedyComparison, _ rhs: RemedyComparison) -> Bool {
+        if lhs.label.rank != rhs.label.rank {
+            return lhs.label.rank < rhs.label.rank
+        }
+        return lhs.mean < rhs.mean
     }
 
     /// The one-sentence takeaway shown at the top of the results screen.

@@ -183,10 +183,10 @@ private struct MethodCard: View {
         DisclosureGroup {
             VStack(alignment: .leading, spacing: 10) {
                 Text("Each remedy's nights are compared with your nights without a remedy, using snore minutes per hour so short and long nights count equally.")
-                Text("“Likely helps” needs at least \(RemedyAnalyzer.minimumNights) nights of each, at least 20% less snoring, and a permutation test showing the drop is unlikely to be chance (p < 0.1).")
-                Text("“Might help” means at least 10% less snoring, but not enough evidence yet. “Seems worse” means at least 10% more.")
+                Text(verbatim: "“Likely helps” needs at least \(RemedyAnalyzer.minimumNights) nights of each, at least 20% less snoring, and a permutation test showing the drop is unlikely to be chance (p < 0.1).")
+                Text(verbatim: "“Might help” means at least 10% less snoring, but not enough evidence yet. “Seems worse” means at least 10% more.")
                 if excludedCount > 0 {
-                    Text("\(Format.nights(excludedCount)) shorter than 30 minutes \(excludedCount == 1 ? "isn't" : "aren't") counted.")
+                    Text(excludedText)
                 }
                 Text(Disclaimer.text)
             }
@@ -198,5 +198,10 @@ private struct MethodCard: View {
                 .font(.subheadline.weight(.semibold))
         }
         .card()
+    }
+
+    private var excludedText: String {
+        let verb = excludedCount == 1 ? "isn't" : "aren't"
+        return "\(Format.nights(excludedCount)) shorter than 30 minutes \(verb) counted."
     }
 }

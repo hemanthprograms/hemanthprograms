@@ -43,14 +43,16 @@ final class SoundClassifierPipeline {
     /// The allowed window duration closest to `seconds`.
     static func windowDuration(closestTo seconds: TimeInterval, allowedBy constraint: SNTimeDurationConstraint) -> CMTime {
         let preferred = CMTime(seconds: seconds, preferredTimescale: 1_000)
-        if constraint.type == .enumerated {
-            let options = constraint.enumeratedDurations.map(\.timeValue)
+        if case .enumeratedDurations(let options) = constraint {
             return options.min { abs($0.seconds - seconds) < abs($1.seconds - seconds) } ?? preferred
         }
-        let lower = constraint.durationRange.start.seconds
-        let upper = constraint.durationRange.end.seconds
-        guard lower.isFinite, upper.isFinite, upper >= lower else { return preferred }
-        return CMTime(seconds: min(max(seconds, lower), upper), preferredTimescale: 1_000)
+        if case .durationRange(let range) = constraint {
+            let lower = range.start.seconds
+            let upper = range.end.seconds
+            guard lower.isFinite, upper.isFinite, upper >= lower else { return preferred }
+            return CMTime(seconds: min(max(seconds, lower), upper), preferredTimescale: 1_000)
+        }
+        return preferred
     }
 }
 

@@ -149,7 +149,7 @@ private struct PlanProgressCard: View {
             HStack {
                 SectionLabel(text: "Your plan")
                 Spacer()
-                Text(progress.isComplete ? "Complete" : "Night \(progress.currentNight) of \(progress.totalNights)")
+                Text(progressText)
                     .font(.subheadline.weight(.semibold))
                     .monospacedDigit()
             }
@@ -173,14 +173,20 @@ private struct PlanProgressCard: View {
         .card()
     }
 
+    private var progressText: String {
+        progress.isComplete ? "Complete" : "Night \(progress.currentNight) of \(progress.totalNights)"
+    }
+
     private func stepRow(_ step: PlanStepProgress) -> some View {
         let remedy = remedies.first { $0.id == step.remedyID }
         let done = min(step.completedNights, step.requiredNights)
+        let title: String = remedy.map { $0.isBaseline ? "Baseline (no remedy)" : $0.name } ?? "Removed remedy"
+        let spokenProgress = step.isComplete ? "Done" : "\(done) of \(step.requiredNights) nights"
         return HStack(spacing: 12) {
             Image(systemName: remedy?.symbol ?? "questionmark")
                 .frame(width: 24)
                 .foregroundStyle(step.isComplete ? Theme.accent : Theme.secondaryText)
-            Text(remedy.map { $0.isBaseline ? "Baseline (no remedy)" : $0.name } ?? "Removed remedy")
+            Text(title)
             Spacer()
             if step.isComplete {
                 Image(systemName: "checkmark.circle.fill")
@@ -193,7 +199,7 @@ private struct PlanProgressCard: View {
         }
         .font(.subheadline)
         .accessibilityElement(children: .combine)
-        .accessibilityValue(step.isComplete ? "Done" : "\(done) of \(step.requiredNights) nights")
+        .accessibilityValue(spokenProgress)
     }
 }
 

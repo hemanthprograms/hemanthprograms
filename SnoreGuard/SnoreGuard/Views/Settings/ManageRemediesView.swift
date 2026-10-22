@@ -60,7 +60,7 @@ struct ManageRemediesView: View {
         .screenBackground()
         .navigationTitle("Remedies")
         .confirmationDialog(
-            "Delete \(pendingDeletion?.name ?? "remedy")?",
+            deletionTitle,
             isPresented: Binding(get: { pendingDeletion != nil }, set: { if !$0 { pendingDeletion = nil } }),
             titleVisibility: .visible
         ) {
@@ -70,9 +70,17 @@ struct ManageRemediesView: View {
                 }
             }
         } message: {
-            let count = pendingDeletion?.nights.count ?? 0
-            Text(count == 0 ? "It hasn't been used yet." : "Its \(Format.nights(count)) will be deleted too.")
+            Text(deletionMessage)
         }
+    }
+
+    private var deletionTitle: String {
+        "Delete \(pendingDeletion?.name ?? "remedy")?"
+    }
+
+    private var deletionMessage: String {
+        let count = pendingDeletion?.nights.count ?? 0
+        return count == 0 ? "It hasn't been used yet." : "Its \(Format.nights(count)) will be deleted too."
     }
 
     private func row(_ remedy: Remedy) -> some View {

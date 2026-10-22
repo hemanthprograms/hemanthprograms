@@ -148,22 +148,23 @@ struct NightDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(Format.time(event.startDate))
                     .monospacedDigit()
-                Text("\(Format.duration(event.duration)) · peak \(Int((event.peakConfidence * 100).rounded()))%")
+                Text(verbatim: "\(Format.duration(event.duration)) · peak \(Int((event.peakConfidence * 100).rounded()))%")
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
             }
             .accessibilityElement(children: .combine)
             Spacer()
             if let clip = event.clipFileName, ClipStore.existingURL(for: clip) != nil {
+                let isPlaying = player.playingFileName == clip
                 Button {
                     player.toggle(clip)
                 } label: {
-                    Image(systemName: player.playingFileName == clip ? "stop.circle.fill" : "play.circle.fill")
+                    Image(systemName: isPlaying ? "stop.circle.fill" : "play.circle.fill")
                         .font(.title2)
                         .foregroundStyle(Theme.accent)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(player.playingFileName == clip ? "Stop clip" : "Play clip")
+                .accessibilityLabel(isPlaying ? "Stop clip" : "Play clip")
             }
         }
         .font(.subheadline)

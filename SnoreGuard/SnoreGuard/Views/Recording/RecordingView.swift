@@ -64,6 +64,8 @@ struct RecordingView: View {
     private func content(now: Date) -> some View {
         let elapsed = recording.startDate.map { now.timeIntervalSince($0) } ?? 0
         let isSnoring = recording.lastSnoringDate.map { now.timeIntervalSince($0) < DetectionConfig.snoringIndicatorHold } ?? false
+        let eventWord = recording.eventCount == 1 ? "event" : "events"
+        let eventsText = "\(recording.eventCount) snore \(eventWord) so far"
 
         return VStack(spacing: 28) {
             Spacer()
@@ -80,7 +82,7 @@ struct RecordingView: View {
 
             ListeningIndicator(isSnoring: isSnoring, isPaused: recording.isPaused)
 
-            Text("\(recording.eventCount) snore \(recording.eventCount == 1 ? "event" : "events") so far")
+            Text(eventsText)
                 .font(.subheadline)
                 .monospacedDigit()
                 .foregroundStyle(Theme.secondaryText)
