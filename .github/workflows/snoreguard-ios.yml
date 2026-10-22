@@ -76,25 +76,63 @@ jobs:
 
       - name: Check for warnings and errors
         if: always()
-        run: |
-          cat build.log test.log 2>/dev/null | grep -E "(warning|error):" | sort -u > issues.txt || true
-          echo "All issues reported by xcodebuild:"
-          cat issues.txt
-          grep -E "$GITHUB_WORKSPACE/SnoreGuard/(SnoreGuard|SnoreGuardTests|Config)/" issues.txt > project-issues.txt || true
-          if [ -s project-issues.txt ]; then
-            echo "::error::Warnings or errors in project sources"
-            cat project-issues.txt
-            exit 1
-          fi
-          echo "No warnings or errors in project sources."
+        run: bash Tools/check_xcodebuild_warnings.sh build.log test.log
 
       - name: Upload logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: xcodebuild-logs
+          name: xcodebuild-logs-simulator
           path: |
             SnoreGuard/build.log
             SnoreGuard/test.log
+            SnoreGuard/issues.txt
+          if-no-files-found: ignore
+
+  # Compiles the app and tests with Xcode 16 (Swift 6.0). Building for the generic simulator
+  # needs only the SDK, so this works even when the image has no Xcode 16 simulators.
+  build-xcode-16:
+    name: Build with Xcode 16
+    runs-on: macos-15
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: SnoreGuard
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: |
+          XCODE=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$XCODE" ]; then echo "::error::No Xcode 16 on this runner image"; exit 1; fi
+          sudo xcode-select -s "$XCODE/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate Xcode project
+        run: xcodegen generate
+
+      - name: Build app and tests
+        run: |
+          set -o pipefail
+          xcodebuild -project SnoreGuard.xcodeproj -scheme SnoreGuard \
+            -destination "generic/platform=iOS Simulator" \
+            -derivedDataPath DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            clean build-for-testing 2>&1 | tee build.log
+
+      - name: Check for warnings and errors
+        if: always()
+        run: bash Tools/check_xcodebuild_warnings.sh build.log
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: xcodebuild-logs-xcode16
+          path: |
+            SnoreGuard/build.log
             SnoreGuard/issues.txt
           if-no-files-found: ignore
